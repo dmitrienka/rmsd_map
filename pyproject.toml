@@ -1,19 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "rmsd_map"
-version = "0.0.1"
-authors = [
-  { name="Artem Dmitrienko", email="dmitrienka@gmail.com" },
-]
-description = "Code for calculating distance matrix for set of molecular fragments with rmsd"
-readme = "README.md"
+name            = "rmsd_map"
+version         = "0.0.1"
+description     = "Tools for RMSD distance matrices of molecular fragments"
+readme          = "README.md"
+license         = {text = "MIT"}
+authors         = [{name = "Artem Dmitrienko", email = "dmitrienka@gmail.com"}]
 requires-python = ">=3.9"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
+
+dependencies = [
+  "numpy>=1.23",
+  "jax>=0.5",
+  "flax>=0.7",
+  "polars>=0.20",
+  "rdkit>=2023.09.1",
+  "umap-learn>=0.5",
+  "datashader",
+  "pyarrow"
 ]
-license = "MIT"
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "black", "mypy", "pre-commit"]
 
 [tool.pytest.ini_options]
-pythonpath = [
-  "."
-]
+addopts = "-ra -q"
+pythonpath = ["."]
