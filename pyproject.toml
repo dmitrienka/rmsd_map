@@ -27,6 +27,7 @@ dev = ["pytest", "ruff", "black", "mypy", "pre-commit"]
 
 [project.scripts]
 rmsd-map-distances = "rmsd_map.cli.calc_distances:main"
+rmsd-map-umaps = "rmsd_map.cli.calc_umaps:main"
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"

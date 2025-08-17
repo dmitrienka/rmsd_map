@@ -7,7 +7,6 @@ import jax.numpy as jnp
 import argparse
 from pathlib import Path
 
-import rmsd_map
 from rmsd_map.mol_io.cor_reader import read_cor_file
 from rmsd_map.symmetry import rdkit_symmetry as sym
 from rmsd_map.rmsd import kabsch_jax as kj
