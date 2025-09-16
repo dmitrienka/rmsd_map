@@ -18,6 +18,33 @@ def kabsch_core_rmsd_improp(A, B, perms): # A:(B,N,3) B:(B,N,3) perm:(P,N)
     S_term = jnp.max(jnp.sum(S, axis = 2), axis = 1) * 2 / N
     return S_term  # Rmsd = A_term + B_term - S_term; A_term = jnp.sum(Acs**2, axis = [1,2])/N
 
+
+@jax.jit
+def kabsch_full_improp(A, B, perms): # A:(B,N,3) B:(B,N,3) perm:(P,N)
+    N = A.shape[1]
+    Ap = jnp.take(A, perms, axis = 1) # Ap: (B, P, N, 3)
+    Rp = jnp.einsum("bpij,bik->bpjk", Ap, B) #Rp: (B, P, 3, 3)
+    U, S, tV = jnp.linalg.svd(Rp, compute_uv = True) #S: (B, P, 3), # U,tV: (B, P, 3, 3)
+    permut_S_terms = jnp.sum(S, axis = 2) * 2 / N # (B,P)
+    best_i = jnp.argmax(permut_S_terms, axis = 1) #(B)
+    best_i_2d = jnp.expand_dims(best_i, 1)
+    best_i_4d = jnp.expand_dims(best_i, (1,2,3))
+    S_term = jnp.take_along_axis(permut_S_terms, best_i_2d, axis = 1) # (B,1)
+    S_term = jnp.squeeze(S_term, axis = 1) # (B)
+    A_term = jnp.sum(A**2, axis = [1,2])/N
+    B_term = jnp.sum(B**2, axis = [1,2])/N
+    MS = jnp.maximum(A_term  + B_term - S_term, 0)
+    RMS = jnp.sqrt(MS)
+    Rot = jnp.einsum("bpij,bpjk->bpik", U,tV) # (B, P, 3, 3)
+    Rot = jnp.take_along_axis(Rot, best_i_4d , axis = 1) # (B, 1, 3, 3)
+    Rot = jnp.squeeze(Rot, axis = 1) # (B, 3, 3)
+    A_best = jnp.take_along_axis(Ap, best_i_4d, axis = 1)
+    A_best = jnp.squeeze(A_best, axis = 1)
+    Trans = jnp.einsum("bij,bnj->bni", Rot, A_best) # (B, N, 3)
+    return {'RMSD':RMS, 'Permutation':best_i, 'Rotation':Rot, 'Transformed':Trans}
+
+
+
 def triu_gen_batched(M, k, batch_size):
     rows = []
     cols = []
