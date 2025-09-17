@@ -39,6 +39,8 @@ def main():
 
     res = kj.run_distance_matrix_async(frags_np, perms, args.batch_size, report = args.report_interval)
 
+    print(res[0])
+    print(res[-1])
     print(f"Saving data")
     print(f"{now()}: Creating DataFrame")
 

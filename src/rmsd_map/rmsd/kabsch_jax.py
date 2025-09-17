@@ -43,7 +43,62 @@ def kabsch_full_improp(A, B, perms): # A:(B,N,3) B:(B,N,3) perm:(P,N)
     Trans = jnp.einsum("bij,bnj->bni", Rot, A_best) # (B, N, 3)
     return {'RMSD':RMS, 'Permutation':best_i, 'Rotation':Rot, 'Transformed':Trans}
 
+def numpify(c):
+    if hasattr(c, '_make'):
+        l = [np.asarray(x) for x in c]
+        c._make(l)
+    if isinstance(c, tuple):
+        l = [np.asarray(x) for x in c]
+        return tuple(l)
+    if isinstance(c, dict):
+        return {k:np.asarray(v) for k,v in c}
 
+    
+
+def kabsch_run_batched(coords_tensor_on_device, permutations_array_on_device,
+                       batched_index_gen, kabsch_kernel, batch_transform):
+    AB = coords_tensor_on_device
+    perm_d   = permutations_array_on_device
+    ij_ranges = prefetch_to_device(batched_index_gen, 2)
+    results = []
+    prev_handles = None
+    start_time = datetime.now()
+    for counter, ij_range in enumerate(ij_ranges):
+        i = ij_range[0][0]
+        j = ij_range[0][1]
+        A = AB[i]
+        B = AB[j]
+        result = kabsch_kernel(A, B, perm_d)
+        transformed_results = batch_transform(result, i, j, counter, start_time)
+        for t in transformed_results:
+            t.copy_to_host_async()
+        current_handles = transformed_results
+
+        if prev_handles is not None:
+            results.append(numpify(prev_handles))
+
+        prev_handles = current_handles
+    if prev_handles is not None:
+        results.append(numpify(prev_handles))
+    return results
+
+def run_distance_matrix_async(coords_np, perm_np, batch_size, report):
+    AB = jax.device_put(coords_np) # AB: (B, N, 3)
+    AB = AB - AB.mean(axis=1, keepdims=True)
+    M = AB.shape[0]
+    N = AB.shape[1]
+    T = M * (M-1) // 2
+    AB_terms = jnp.sum(AB**2, axis = [1,2])/N
+    perm_d  = jax.device_put(perm_np)
+    index_gen = triu_gen_batched(M, 1, batch_size)
+    def transform(result, i , j, counter, start_time):
+        if (counter % report == 0 ):
+            time = datetime.now() - start_time
+            print( f"{time.total_seconds()}s: {counter * batch_size}/{T}")
+        msd = jnp.maximum(AB_terms[i] + AB_terms[j] - result, 0)
+        rmsd = jnp.sqrt(msd)
+        return (i, j, rmsd)
+    return kabsch_run_batched(AB, perm_d, index_gen, kabsch_core_rmsd_improp, transform)
 
 def triu_gen_batched(M, k, batch_size):
     rows = []
@@ -77,7 +132,7 @@ def k_to_ij(k,M, dtype=jnp.int32):
     return(i,j)
 
 
-def run_distance_matrix_async(coords_np, perm_np, batch_size, report):
+def run_distance_matrix_async_old(coords_np, perm_np, batch_size, report):
     AB = jax.device_put(coords_np) # AB: (B, N, 3)
     AB = AB - AB.mean(axis=1, keepdims=True)
     M = AB.shape[0]
