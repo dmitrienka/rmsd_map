@@ -82,6 +82,17 @@ def kabsch_run_batched(coords_tensor_on_device, permutations_array_on_device,
         results.append(numpify(prev_handles))
     return results
 
+def align_to_one(coords_np, perm_np, center, batch_size):
+    AB = jax.device_put(coords_np) # AB: (B, N, 3)
+    perm_d  = jax.device_put(perm_np)
+    AB = AB - AB.mean(axis=1, keepdims=True)
+    M = AB.shape[0]
+    indices = np.vstack([np.arange(M), np.repeat(center, M)])
+    index_gen = np.array_split(np.expand_dims(indices, axis = 0), batch_size, axis = 2)
+    def transform(result, i,j, counter, start_time):
+        return(i, result["Transformed"])
+    return kabsch_run_batched(AB, perm_d, index_gen, kabsch_, transform)
+
 def run_distance_matrix_async(coords_np, perm_np, batch_size, report):
     AB = jax.device_put(coords_np) # AB: (B, N, 3)
     AB = AB - AB.mean(axis=1, keepdims=True)
