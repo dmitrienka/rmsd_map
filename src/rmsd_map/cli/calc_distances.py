@@ -37,34 +37,31 @@ def main():
     print(f"Set up a calculation with {NFrags} fragments, {perms.shape[1]} atoms and {perms.shape[0]} symmetries")
     print(f"{now()}: Starting distance calculations")
 
-    res = kj.run_distance_matrix_async(frags_np, perms, args.batch_size, report = args.report_interval)
+    dfs = []
+    mat = np.zeros((NFrags, NFrags), dtype=float)
 
-    print(res[0])
-    print(res[-1])
-    print(f"Saving data")
-    print(f"{now()}: Creating DataFrame")
-
-    df = pl.concat([
-        pl.DataFrame(
+    for d in kj.distance_matrix_stream(frags_np, perms, args.batch_size, args.report_interval):
+        i = d["i"]
+        j = d["j"]
+        rmsd  = d["RMSD"]
+        mat[i, j] = rmsd
+        mat[j, i] = rmsd
+        df =  pl.DataFrame(
             {
                 'ID_A': names[i],
                 'ID_B': names[j],
                 'Dist': rmsd
-            }
-        ) for (i, j, rmsd) in res
-    ], how="vertical")
+            })
+        dfs.append(df)
+
+    print(f"Saving data")
+    print(f"{now()}: Creating DataFrame")
+
+    df = pl.concat(dfs, how="vertical")
 
     print(f"{now()}: Saving DataFrame")
 
     df.write_csv(f"{args.output}.csv")
-
-    print(f"{now()}: Creating matrix")
-
-    mat = np.zeros((NFrags, NFrags), dtype=float)
-
-    for i, j, rmsd in res:
-        mat[i, j] = rmsd
-        mat[j, i] = rmsd
 
     print(f"{now()}: Saving matrix")
 
