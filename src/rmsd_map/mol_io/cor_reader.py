@@ -1,14 +1,7 @@
 import numpy as np
-from dataclasses import dataclass
-from typing import List
 import re
-
-@dataclass
-class Fragment:
-    """Container for molecular fragment data"""
-    id: str
-    elements: np.ndarray  # (N,) str
-    coords: np.ndarray    # (N,3) float32
+from typing import List
+from rmsd_map.mol_io.fragment import Fragment
 
 ELEMENT_PATTERN = re.compile(r'^([A-Z][a-z]?)')
 
