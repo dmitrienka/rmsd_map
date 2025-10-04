@@ -63,7 +63,6 @@ def kabsch_full_improp(A, # (B, N, 3)
     best_i_2d = jnp.expand_dims(best_i, 1) # (B, 1)
     best_i_4d = jnp.expand_dims(best_i, (1,2,3)) # (B, 1, 1, 1)
     best_perms = jnp.take_along_axis(perms, best_i_2d, axis = 0) # (B, P)
-    best_perms = jnp.expand_dims(best_perms, 2) # (B, P, 1)
     S_term = jnp.take_along_axis(permut_S_terms, best_i_2d, axis = 1) # (B,1)
     S_term = jnp.squeeze(S_term, axis = 1) # (B)
     MSD = jnp.maximum(A_sq_sum  + B_sq_sum - S_term, 0)
@@ -73,9 +72,8 @@ def kabsch_full_improp(A, # (B, N, 3)
     Rot = jnp.squeeze(Rot, axis = 1) # (B, 3, 3)
     A_best = jnp.take_along_axis(Ap, best_i_4d, axis = 1)
     A_best = jnp.squeeze(A_best, axis = 1) # (B, P, 3)
-    A_best = jnp.take_along_axis(A_best, best_perms, axis = 1) # (B, N, 3)
     Trans = jnp.einsum("bji,bnj->bni", Rot, A_best) # (B, N, 3)
-    return {'RMSD':RMSD, 'Permutation':best_i, 'Rotation':Rot, 'Transformed':Trans}
+    return {'RMSD':RMSD, 'Permutation':best_perms, 'Rotation':Rot, 'Transformed':Trans}
 
 
 def calculate_pairs(AB,
