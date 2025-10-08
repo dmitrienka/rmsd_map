@@ -90,3 +90,30 @@ def align_gen_batched(M, center, batch_size):
     for i in ii:
         j = jnp.repeat(center, i.shape[0]).astype(jnp.int32)
         yield (i, j)
+
+def chain_gen_batched(M, batch_size):
+    split_by = jnp.maximum(1, (M - 1) // batch_size)
+    ii = jnp.array_split(
+        jnp.arange(M - 1, dtype=jnp.int32),
+        split_by)
+    for j in ii:
+        i = j + 1
+        yield (i, j)
+
+def chain_fragments_naive(fragments):
+    M = len(fragments)
+    coords_np = np.stack([f.coords for f in fragments], axis=0)
+    AB_old = jax.device_put(coords_np)
+    AB_new = jnp.zeros(AB_old.shape, dtype = AB_old.dtype)
+    AB_new[0] = AB_old[0]
+    perms = jax.device_put(fragments[0].perms())
+    new_fragments = np.empty(len(fragments), dtype = "object")
+    new_fragments[0] = fragments[0]
+    for i in jnp.arange(1, M):
+        A = AB_new[i - 1]
+        B = AB_old[i]
+        r = kabsch_full_improp(A, B, perms)['Transformed']
+        AB_new[i] = r
+        new_fragments[i] = fragments[i].replace(coords = np.asarray(r))
+    return new_fragments
+
