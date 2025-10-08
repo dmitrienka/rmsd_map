@@ -10,20 +10,32 @@ readme          = "README.md"
 license         = {text = "MIT"}
 authors         = [{name = "Artem Dmitrienko", email = "dmitrienka@gmail.com"}]
 requires-python = ">=3.9"
+keywords        = ["rmsd", "crystallography", "chemistry", "molecules", "visualisation"]
+classifiers     = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
 
 dependencies = [
   "numpy>=1.23",
-  "jax>=0.5",
-  "flax>=0.7",
+  "jax>=0.4.20",
   "polars>=0.20",
   "rdkit>=2023.09.1",
   "umap-learn>=0.5",
+  "matlotlib",
   "datashader",
-  "pyarrow"
+  "pyarrow",
+  "py3Dmol"
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "black", "mypy", "pre-commit"]
+
+[project.urls]
+homepage = "https://github.com/unknown/rmsd_map"
+repository = "https://github.com/unknown/rmsd_map"
 
 [project.scripts]
 rmsd-map-distances = "rmsd_map.cli.calc_distances:main"
@@ -31,4 +43,4 @@ rmsd-map-umaps = "rmsd_map.cli.calc_umaps:main"
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"
-pythonpath = ["."]
+pythonpath = ["src"]
