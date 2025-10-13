@@ -76,6 +76,44 @@ def kabsch_full_improp(A, # (B, N, 3)
     return {'RMSD':RMSD, 'Permutation':best_perms, 'Rotation':Rot, 'Transformed':Trans}
 
 
+@jax.jit
+def kabsch_full_proper(A, # (B, N, 3)
+                       B, # (B, N, 3)
+                       perms, # (P, N)
+                       A_sq_sum = None, # (B,)
+                       B_sq_sum = None): # (B,)
+    M, N, _ = A.shape
+    P, _ = perms.shape
+    if A_sq_sum is None:
+        A_sq_sum = jnp.sum(A**2, axis = [1,2])/N
+    if B_sq_sum is None:
+        B_sq_sum = jnp.sum(B**2, axis = [1,2])/N
+    Ap = jnp.take(A, perms, axis = 1) # Ap: (B, P, N, 3)
+    Rp = jnp.einsum("bpij,bik->bpjk", Ap, B) #Rp: (B, P, 3, 3)
+    dets = jnp.linalg.det(Rp) # (B, P)
+    detsigns = jnp.signbit(dets).astype(jnp.int32)  * -2 + 1 # (B, P)
+    eye = jnp.tile(jnp.eye(3), (M, P, 1, 1))
+    eye = eye.at[:, :, 2, 2].set(detsigns)
+    U, S, tV = jnp.linalg.svd(Rp, compute_uv = True) #S: (B, P, 3), # U,tV: (B, P, 3, 3)
+    S_new = S.at[:,:,2].set(S[:,:,2] * detsigns)
+    permut_S_terms = jnp.sum(S_new, axis = 2) * 2 / N # (B,P)
+    best_i = jnp.argmax(permut_S_terms, axis = 1) #(B)
+    best_i_2d = jnp.expand_dims(best_i, 1) # (B, 1)
+    best_i_4d = jnp.expand_dims(best_i, (1,2,3)) # (B, 1, 1, 1)
+    best_perms = jnp.take_along_axis(perms, best_i_2d, axis = 0) # (B, P)
+    S_term = jnp.take_along_axis(permut_S_terms, best_i_2d, axis = 1) # (B,1)
+    S_term = jnp.squeeze(S_term, axis = 1) # (B)
+    MSD = jnp.maximum(A_sq_sum  + B_sq_sum - S_term, 0)
+    RMSD = jnp.sqrt(MSD)
+    Rot = jnp.einsum("bpij,bpjl,bplk->bpik", U, eye, tV) # (B, P, 3, 3)
+    Rot = jnp.take_along_axis(Rot, best_i_4d , axis = 1) # (B, 1, 3, 3)
+    Rot = jnp.squeeze(Rot, axis = 1) # (B, 3, 3)
+    A_best = jnp.take_along_axis(Ap, best_i_4d, axis = 1)
+    A_best = jnp.squeeze(A_best, axis = 1) # (B, P, 3)
+    Trans = jnp.einsum("bji,bnj->bni", Rot, A_best) # (B, N, 3)
+    return {'RMSD':RMSD, 'Permutation':best_perms, 'Rotation':Rot, 'Transformed':Trans}
+
+
 def calculate_pairs(AB,
                     permutations,
                     batched_index_gen,
